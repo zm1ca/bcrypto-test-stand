@@ -1,0 +1,11 @@
+{
+  "path": "bin/default/bee2-cfb-ctr-hsh-mac-brng.exe",
+  "modes": [
+    {"name": "belt-cfb",       "alias": "cfb"},
+    {"name": "belt-ctr",       "alias": "ctr"},
+    {"name": "belt-hash",      "alias": "hsh"},
+    {"name": "belt-mac",       "alias": "mac"},
+    {"name": "brng-ctr-hbelt", "alias": "brng"}
+  ],
+  "tag": "bee2b"
+}

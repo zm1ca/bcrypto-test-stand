@@ -12,8 +12,8 @@ CLAUDE.md
 
 # Sample configs — only the shipped bee2 configs are tracked
 samples/*
-!samples/bee2a.cfg
-!samples/bee2b.cfg
+!samples/bee2a.json
+!samples/bee2b.json
 
 # macOS metadata
 .DS_Store
