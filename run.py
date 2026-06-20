@@ -185,6 +185,7 @@ def main(argv=None):
 
     rng = random.Random()
     any_failure = False
+    mode_stats = {}  # mode_name -> (success, failure, total)
 
     for name in mode_names:
         try:
@@ -193,11 +194,32 @@ def main(argv=None):
             print(f"Skipping mode '{name}': {exc}", file=sys.stderr)
             any_failure = True
             continue
-        failures, errored = run_mode(mode, samples, args.n, args.verbose, rng)
+        success, failures, errored = run_mode(mode, samples, args.n, args.verbose, rng)
+        total = success + failures
+        mode_stats[name] = (success, failures, total)
         if failures or errored:
             any_failure = True
 
+    _print_summary(mode_stats)
     return 1 if any_failure else 0
+
+
+def _print_summary(mode_stats):
+    if not mode_stats:
+        return
+    print("=== Summary ===")
+    w = max(len(name) for name in mode_stats)
+    all_success = 0
+    all_total = 0
+    for name, (success, failure, total) in mode_stats.items():
+        pct = success / total * 100 if total > 0 else 0.0
+        status = "" if failure == 0 else f"  ({failure} failed)"
+        print(f"  {name:<{w}}  {success}/{total} passed ({pct:.1f}%){status}")
+        all_success += success
+        all_total += total
+    overall_pct = all_success / all_total * 100 if all_total > 0 else 0.0
+    print(f"  {'─' * (w + 30)}")
+    print(f"  {'Overall':<{w}}  {all_success}/{all_total} passed ({overall_pct:.1f}%)")
 
 
 if __name__ == "__main__":

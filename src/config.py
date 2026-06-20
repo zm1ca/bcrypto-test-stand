@@ -40,18 +40,20 @@ class ConfigError(Exception):
 
 
 class Sample:
-    def __init__(self, name, path, modes, cmd=None, tag=None):
+    def __init__(self, name, path, modes, cmd=None, tag=None, mode_aliases=None):
         self.name = name        # registration name (config file stem)
         self.path = path        # resolved, absolute path to the executable/script
-        self.modes = modes      # list[str] of supported mode names
+        self.modes = modes      # list[str] of supported mode names (ASN.1 names)
         self.cmd = cmd          # optional interpreter, or None
         self.tag = tag          # log label
+        self.mode_aliases = mode_aliases or {}  # ASN.1 name -> token the executable expects
 
     def argv(self, mode, params):
         """Build the argument vector for one invocation."""
+        effective_mode = self.mode_aliases.get(mode, mode)
         if self.cmd:
-            return [self.cmd, self.path, mode, *params]
-        return [self.path, mode, *params]
+            return [self.cmd, self.path, effective_mode, *params]
+        return [self.path, effective_mode, *params]
 
 
 def load_sample(name, configs_dir, project_root):
@@ -84,6 +86,13 @@ def load_sample(name, configs_dir, project_root):
         raise ConfigError(
             f"sample '{name}': 'modes' is required (comma-separated) in {cfg_path}")
 
+    raw_aliases = section.get("mode_aliases", "").strip()
+    mode_aliases = {}
+    for item in split_csv(raw_aliases):
+        if ":" in item:
+            asn1_name, _, alias = item.partition(":")
+            mode_aliases[asn1_name.strip()] = alias.strip()
+
     platform_key = _platform_cmd_key()
     cmd = (
         (section.get(platform_key, "").strip() if platform_key else "") or
@@ -92,4 +101,5 @@ def load_sample(name, configs_dir, project_root):
     )
     tag = section.get("tag", "").strip() or os.path.basename(resolved)
 
-    return Sample(name=name, path=resolved, modes=modes, cmd=cmd, tag=tag)
+    return Sample(name=name, path=resolved, modes=modes, cmd=cmd, tag=tag,
+                  mode_aliases=mode_aliases)
