@@ -1,19 +1,38 @@
 """Discovery and loading of sample configuration files.
 
-A sample is one program under test, described by an INI file in `configs/`.
+A sample is one program under test, described by an INI file in `samples/`.
 The file's name (without extension) is the sample's name.
 
     [sample]
-    cmd   = luajit                 ; optional interpreter; omit to run directly
-    path  = PAZL/pazl-cmd.lua      ; relative to project root, or absolute
-    modes = cfb, ctr, mac, hsh     ; comma-separated list of supported modes
-    tag   = PAZL reference         ; optional log label; defaults to the basename
+    path         = path/to/binary   ; relative to project root, or absolute (required)
+    modes        = cfb, ctr, mac    ; comma-separated list of supported modes (required)
+    cmd          = wine             ; interpreter/wrapper for all platforms (optional)
+    cmd_win      = ...              ; Windows (optional, overrides cmd)
+    cmd_linux    = ...              ; Linux x86-64 (optional, overrides cmd)
+    cmd_linux_arm = ...             ; Linux ARM64 (optional, overrides cmd)
+    cmd_mac      = ...              ; macOS Intel (optional, overrides cmd)
+    cmd_mac_arm  = ...              ; macOS Apple Silicon (optional, overrides cmd)
+    tag          = My label         ; log label; defaults to the filename (optional)
 """
 
 import configparser
 import os
+import platform
+import sys
 
 from src.util import new_ini_parser, split_csv
+
+
+def _platform_cmd_key():
+    p = sys.platform
+    m = platform.machine().lower()
+    if p == "win32":
+        return "cmd_win"
+    if p == "darwin":
+        return "cmd_mac_arm" if m == "arm64" else "cmd_mac"
+    if p.startswith("linux"):
+        return "cmd_linux_arm" if m == "aarch64" else "cmd_linux"
+    return None
 
 
 class ConfigError(Exception):
@@ -65,7 +84,12 @@ def load_sample(name, configs_dir, project_root):
         raise ConfigError(
             f"sample '{name}': 'modes' is required (comma-separated) in {cfg_path}")
 
-    cmd = section.get("cmd", "").strip() or None
+    platform_key = _platform_cmd_key()
+    cmd = (
+        (section.get(platform_key, "").strip() if platform_key else "") or
+        section.get("cmd", "").strip() or
+        None
+    )
     tag = section.get("tag", "").strip() or os.path.basename(resolved)
 
     return Sample(name=name, path=resolved, modes=modes, cmd=cmd, tag=tag)

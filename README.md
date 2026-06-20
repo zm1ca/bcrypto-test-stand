@@ -48,13 +48,18 @@ Drop an INI file in `samples/`. The filename without `.cfg` is the name you pass
 
 ```ini
 [sample]
-cmd   = luajit          ; optional interpreter; omit to run the path directly
-path  = path/to/binary  ; relative to project root, or absolute
-modes = cfb, ctr, mac   ; comma-separated list of supported modes
-tag   = My label        ; optional; defaults to the filename
+path          = path/to/binary  ; relative to project root, or absolute (required)
+modes         = cfb, ctr, mac   ; comma-separated list of supported modes (required)
+cmd           = wine            ; interpreter/wrapper, all platforms (optional)
+cmd_win       = ...             ; Windows — overrides cmd (optional)
+cmd_linux     = ...             ; Linux x86-64 — overrides cmd (optional)
+cmd_linux_arm = ...             ; Linux ARM64 — overrides cmd (optional)
+cmd_mac       = ...             ; macOS Intel — overrides cmd (optional)
+cmd_mac_arm   = ...             ; macOS Apple Silicon — overrides cmd (optional)
+tag           = My label        ; log label; defaults to the filename (optional)
 ```
 
-Each sample is invoked as `[cmd] <path> <mode> <param1> <param2> ...`.
+Each sample is invoked as `[cmd] <path> <mode> <param1> <param2> ...`. The most specific platform key wins; `cmd` is the fallback for any platform not listed.
 
 ## Adding a mode
 

@@ -91,17 +91,35 @@ def cmd_list_modes():
     if not entries:
         print("No modes found in modes/")
         return 0
+
+    rows = []
     for filename in entries:
         name = filename[:-4]
         cfg_path = os.path.join(MODES_DIR, filename)
-        parser = new_ini_parser()
+        p = new_ini_parser()
         try:
-            parser.read(cfg_path, encoding="utf-8")
-            desc = parser.get("mode", "description", fallback="").strip()
+            p.read(cfg_path, encoding="utf-8")
+            asn1 = p.get("mode", "asn1", fallback="").strip()
+            docs = p.get("mode", "docs", fallback="").strip()
+            desc = p.get("mode", "description", fallback="").strip()
         except configparser.Error:
-            desc = ""
-        suffix = f"  {desc}" if desc else ""
-        print(f"  {name:<20}{suffix}")
+            asn1 = docs = desc = ""
+        rows.append((name, asn1, docs, desc))
+
+    w_name = max(len(r[0]) for r in rows)
+    w_asn1 = max(len(r[1]) for r in rows)
+
+    for name, asn1, docs, desc in rows:
+        parts = [f"  {name:<{w_name}}"]
+        if asn1:
+            parts.append(f"  {asn1:<{w_asn1}}")
+        elif w_asn1:
+            parts.append(f"  {'':<{w_asn1}}")
+        if docs:
+            parts.append(f"  {docs}")
+        elif desc:
+            parts.append(f"  {desc}")
+        print("".join(parts))
     return 0
 
 
