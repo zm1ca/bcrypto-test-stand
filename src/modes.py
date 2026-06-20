@@ -27,8 +27,9 @@ from src.util import new_ini_parser, rng_hex
 
 
 class Mode:
-    def __init__(self, name, generate, param_names):
+    def __init__(self, name, generate, param_names, description=""):
         self.name = name                # token passed to executables
+        self.description = description  # human-readable label from the cfg
         self._generate = generate       # callable(rng) -> list[str]
         self.param_names = param_names  # list[str|None] or None
 
@@ -64,6 +65,8 @@ def load_mode(name, modes_dir, generators_dir):
         raise ConfigError(f"mode '{name}': missing [mode] section in {cfg_path}")
     section = parser["mode"]
 
+    description = section.get("description", "").strip()
+
     has_params = "params" in section
     has_generator = "generator" in section
     if has_params and has_generator:
@@ -73,11 +76,11 @@ def load_mode(name, modes_dir, generators_dir):
         raise ConfigError(f"mode '{name}': must define 'params' or 'generator'")
 
     if has_params:
-        return _build_declarative(name, section["params"])
-    return _build_scripted(name, section, generators_dir)
+        return _build_declarative(name, section["params"], description)
+    return _build_scripted(name, section, generators_dir, description)
 
 
-def _build_declarative(name, raw_params):
+def _build_declarative(name, raw_params, description=""):
     specs = _parse_params(name, raw_params)        # list of (name|None, n_bytes)
     names = [pname for (pname, _) in specs]
     sizes = [nbytes for (_, nbytes) in specs]
@@ -85,14 +88,15 @@ def _build_declarative(name, raw_params):
     def generate(rng):
         return [rng_hex(rng, nbytes) for nbytes in sizes]
 
-    return Mode(name=name, generate=generate, param_names=names)
+    return Mode(name=name, generate=generate, param_names=names, description=description)
 
 
-def _build_scripted(name, section, generators_dir):
+def _build_scripted(name, section, generators_dir, description=""):
     gen_name = section["generator"].strip()
     if not gen_name:
         raise ConfigError(f"mode '{name}': 'generator' is empty")
-    options = {key: value for key, value in section.items() if key != "generator"}
+    excluded = {"generator", "description"}
+    options = {key: value for key, value in section.items() if key not in excluded}
     gen_func = _load_generator(name, gen_name, generators_dir)
 
     def generate(rng):
@@ -102,8 +106,7 @@ def _build_scripted(name, section, generators_dir):
                 f"mode '{name}': generator '{gen_name}' must return a list of strings")
         return result
 
-    # Scripted generators don't declare param names; fall back to Param{i}.
-    return Mode(name=name, generate=generate, param_names=None)
+    return Mode(name=name, generate=generate, param_names=None, description=description)
 
 
 def _parse_params(name, raw):

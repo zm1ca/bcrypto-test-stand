@@ -34,7 +34,8 @@ def run_mode(mode, samples, n, verbose, rng):
     Returns (failure_count, errored) where `errored` is True if generation or
     invocation raised, in which case the mode was stopped early.
     """
-    print(f"=== Running tests for mode: {mode.name} ===")
+    desc = f" — {mode.description}" if mode.description else ""
+    print(f"=== {mode.name}{desc} ===")
 
     success_count = 0
     failure_count = 0

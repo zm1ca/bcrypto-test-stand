@@ -86,13 +86,22 @@ def cmd_list_samples():
 
 def cmd_list_modes():
     entries = sorted(
-        f[:-4] for f in os.listdir(MODES_DIR) if f.endswith(".cfg")
+        f for f in os.listdir(MODES_DIR) if f.endswith(".cfg")
     )
     if not entries:
         print("No modes found in modes/")
         return 0
-    for name in entries:
-        print(f"  {name}")
+    for filename in entries:
+        name = filename[:-4]
+        cfg_path = os.path.join(MODES_DIR, filename)
+        parser = new_ini_parser()
+        try:
+            parser.read(cfg_path, encoding="utf-8")
+            desc = parser.get("mode", "description", fallback="").strip()
+        except configparser.Error:
+            desc = ""
+        suffix = f"  {desc}" if desc else ""
+        print(f"  {name:<20}{suffix}")
     return 0
 
 
