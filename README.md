@@ -10,7 +10,7 @@ samples/        one INI file per sample
 modes/          one INI file per mode
 generators/     Python generators for irregular modes
 src/            implementation
-bin/            binaries (bin/default/ ships the two bee2 executables)
+bin/            binaries (bin/default/ ships custom bee2 executables)
 ```
 
 ## Default samples
