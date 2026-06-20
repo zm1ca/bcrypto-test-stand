@@ -99,22 +99,16 @@ def cmd_list_modes():
         p = new_ini_parser()
         try:
             p.read(cfg_path, encoding="utf-8")
-            asn1 = p.get("mode", "asn1", fallback="").strip()
             docs = p.get("mode", "docs", fallback="").strip()
             desc = p.get("mode", "description", fallback="").strip()
         except configparser.Error:
-            asn1 = docs = desc = ""
-        rows.append((name, asn1, docs, desc))
+            docs = desc = ""
+        rows.append((name, docs, desc))
 
     w_name = max(len(r[0]) for r in rows)
-    w_asn1 = max(len(r[1]) for r in rows)
 
-    for name, asn1, docs, desc in rows:
+    for name, docs, desc in rows:
         parts = [f"  {name:<{w_name}}"]
-        if asn1:
-            parts.append(f"  {asn1:<{w_asn1}}")
-        elif w_asn1:
-            parts.append(f"  {'':<{w_asn1}}")
         if docs:
             parts.append(f"  {docs}")
         elif desc:

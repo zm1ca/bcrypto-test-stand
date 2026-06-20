@@ -27,9 +27,8 @@ from src.util import new_ini_parser, rng_hex
 
 
 class Mode:
-    def __init__(self, name, generate, param_names, asn1="", docs="", description=""):
+    def __init__(self, name, generate, param_names, docs="", description=""):
         self.name = name
-        self.asn1 = asn1
         self.docs = docs
         self.description = description
         self._generate = generate
@@ -68,7 +67,6 @@ def load_mode(name, modes_dir, generators_dir):
     section = parser["mode"]
 
     description = section.get("description", "").strip()
-    asn1 = section.get("asn1", "").strip()
     docs = section.get("docs", "").strip()
 
     has_params = "params" in section
@@ -79,7 +77,7 @@ def load_mode(name, modes_dir, generators_dir):
     if not has_params and not has_generator:
         raise ConfigError(f"mode '{name}': must define 'params' or 'generator'")
 
-    meta = dict(asn1=asn1, docs=docs, description=description)
+    meta = dict(docs=docs, description=description)
     if has_params:
         return _build_declarative(name, section["params"], meta)
     return _build_scripted(name, section, generators_dir, meta)
@@ -102,7 +100,7 @@ def _build_scripted(name, section, generators_dir, meta=None):
     gen_name = section["generator"].strip()
     if not gen_name:
         raise ConfigError(f"mode '{name}': 'generator' is empty")
-    excluded = {"generator", "description", "asn1", "docs"}
+    excluded = {"generator", "description", "docs"}
     options = {key: value for key, value in section.items() if key not in excluded}
     gen_func = _load_generator(name, gen_name, generators_dir)
 
