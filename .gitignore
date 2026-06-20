@@ -1,0 +1,19 @@
+# Binaries — only bin/default/ is tracked; everything else is ignored
+bin/*
+!bin/default/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# AI tooling
+.claude/
+CLAUDE.md
+
+# Sample configs — only the shipped bee2 configs are tracked
+samples/*
+!samples/bee2a.cfg
+!samples/bee2b.cfg
+
+# macOS metadata
+.DS_Store
