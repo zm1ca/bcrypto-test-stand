@@ -18,7 +18,7 @@ Exit codes:
 """
 
 import argparse
-import configparser
+import json
 import os
 import random
 import sys
@@ -27,10 +27,9 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.config import ConfigError, load_sample        # noqa: E402
+from src.config import ConfigError, load_sample          # noqa: E402
 from src.modes import load_mode, mode_definition_exists  # noqa: E402
 from src.runner import run_mode                          # noqa: E402
-from src.util import new_ini_parser, split_csv          # noqa: E402
 
 SAMPLES_DIR = os.path.join(PROJECT_ROOT, "samples")
 MODES_DIR = os.path.join(PROJECT_ROOT, "modes")
@@ -65,20 +64,27 @@ def parse_args(argv=None):
 
 def cmd_list_samples():
     entries = sorted(
-        f for f in os.listdir(SAMPLES_DIR) if f.endswith(".cfg")
+        f for f in os.listdir(SAMPLES_DIR) if f.endswith(".json")
     )
     if not entries:
         print("No samples found in samples/")
         return 0
     for filename in entries:
-        name = filename[:-4]
+        name = filename[:-5]
         cfg_path = os.path.join(SAMPLES_DIR, filename)
-        parser = new_ini_parser()
         try:
-            parser.read(cfg_path, encoding="utf-8")
-            modes = split_csv(parser.get("sample", "modes", fallback=""))
-            modes_str = ", ".join(modes) if modes else "(no modes listed)"
-        except configparser.Error:
+            with open(cfg_path, encoding="utf-8") as f:
+                data = json.load(f)
+            mode_names = []
+            for entry in data.get("modes", []):
+                if isinstance(entry, str):
+                    mode_names.append(entry)
+                elif isinstance(entry, dict):
+                    n = str(entry.get("name", "")).strip()
+                    if n:
+                        mode_names.append(n)
+            modes_str = ", ".join(mode_names) if mode_names else "(no modes listed)"
+        except (OSError, json.JSONDecodeError):
             modes_str = "(could not parse config)"
         print(f"  {name:<20} {modes_str}")
     return 0
@@ -86,7 +92,7 @@ def cmd_list_samples():
 
 def cmd_list_modes():
     entries = sorted(
-        f for f in os.listdir(MODES_DIR) if f.endswith(".cfg")
+        f for f in os.listdir(MODES_DIR) if f.endswith(".json")
     )
     if not entries:
         print("No modes found in modes/")
@@ -94,14 +100,14 @@ def cmd_list_modes():
 
     rows = []
     for filename in entries:
-        name = filename[:-4]
+        name = filename[:-5]
         cfg_path = os.path.join(MODES_DIR, filename)
-        p = new_ini_parser()
         try:
-            p.read(cfg_path, encoding="utf-8")
-            docs = p.get("mode", "docs", fallback="").strip()
-            desc = p.get("mode", "description", fallback="").strip()
-        except configparser.Error:
+            with open(cfg_path, encoding="utf-8") as f:
+                data = json.load(f)
+            docs = str(data.get("docs", "")).strip()
+            desc = str(data.get("description", "")).strip()
+        except (OSError, json.JSONDecodeError):
             docs = desc = ""
         rows.append((name, docs, desc))
 

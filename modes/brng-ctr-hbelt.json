@@ -1,0 +1,8 @@
+{
+  "docs": "STB 34.101.47-2017 (6.2)",
+  "params": [
+    {"name": "x",   "bytes": 96},
+    {"name": "key", "bytes": 32},
+    {"name": "s",   "bytes": 32}
+  ]
+}

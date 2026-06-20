@@ -1,29 +1,38 @@
 """Turn a mode config into a runnable parameter generator.
 
-A mode is described by an INI file in `modes/`; the file's name (without
+A mode is described by a JSON file in `modes/`; the file's name (without
 extension) is the mode token passed as the first argument to every sample.
 
 Declarative form (random hex of fixed sizes):
 
-    [mode]
-    params = x:2048, key:32, s:16      ; "name:bytes"; the name is optional
+    {
+      "docs":   "STB 34.101.31-2020 (7.5)",
+      "params": [
+        {"name": "msg", "bytes": 2048},
+        {"name": "key", "bytes": 32}
+      ]
+    }
 
 Scripted form (irregular generation, e.g. merge):
 
-    [mode]
-    generator = merge                  ; -> generators/merge.py
-    size      = 32                     ; any extra keys are passed as `options`
-    slots     = 5
-    fill_min  = 2
-    fill_max  = 5
+    {
+      "docs":      "STB 34.101.60-2014 (7.4)",
+      "generator": "merge",
+      "options": {
+        "size":     32,
+        "slots":    5,
+        "fill_min": 2,
+        "fill_max": 5
+      }
+    }
 """
 
-import configparser
 import importlib.util
+import json
 import os
 
 from src.config import ConfigError
-from src.util import new_ini_parser, rng_hex
+from src.util import rng_hex
 
 
 class Mode:
@@ -47,30 +56,29 @@ class Mode:
 
 
 def mode_definition_exists(name, modes_dir):
-    return os.path.exists(os.path.join(modes_dir, name + ".cfg"))
+    return os.path.exists(os.path.join(modes_dir, name + ".json"))
 
 
 def load_mode(name, modes_dir, generators_dir):
     """Load and build a Mode by name. Raises ConfigError on problems."""
-    cfg_path = os.path.join(modes_dir, name + ".cfg")
+    cfg_path = os.path.join(modes_dir, name + ".json")
     if not os.path.exists(cfg_path):
         raise ConfigError(f"mode '{name}': definition not found ({cfg_path})")
 
-    parser = new_ini_parser()
     try:
-        parser.read(cfg_path, encoding="utf-8")
-    except configparser.Error as exc:
+        with open(cfg_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"mode '{name}': cannot parse {cfg_path}: {exc}")
 
-    if not parser.has_section("mode"):
-        raise ConfigError(f"mode '{name}': missing [mode] section in {cfg_path}")
-    section = parser["mode"]
+    if not isinstance(data, dict):
+        raise ConfigError(f"mode '{name}': expected a JSON object in {cfg_path}")
 
-    description = section.get("description", "").strip()
-    docs = section.get("docs", "").strip()
+    description = str(data.get("description", "")).strip()
+    docs = str(data.get("docs", "")).strip()
 
-    has_params = "params" in section
-    has_generator = "generator" in section
+    has_params = "params" in data
+    has_generator = "generator" in data
     if has_params and has_generator:
         raise ConfigError(
             f"mode '{name}': specify either 'params' or 'generator', not both")
@@ -79,13 +87,13 @@ def load_mode(name, modes_dir, generators_dir):
 
     meta = dict(docs=docs, description=description)
     if has_params:
-        return _build_declarative(name, section["params"], meta)
-    return _build_scripted(name, section, generators_dir, meta)
+        return _build_declarative(name, data["params"], meta)
+    return _build_scripted(name, data, generators_dir, meta)
 
 
-def _build_declarative(name, raw_params, meta=None):
+def _build_declarative(name, params_list, meta=None):
     meta = meta or {}
-    specs = _parse_params(name, raw_params)        # list of (name|None, n_bytes)
+    specs = _parse_params(name, params_list)
     names = [pname for (pname, _) in specs]
     sizes = [nbytes for (_, nbytes) in specs]
 
@@ -95,13 +103,15 @@ def _build_declarative(name, raw_params, meta=None):
     return Mode(name=name, generate=generate, param_names=names, **meta)
 
 
-def _build_scripted(name, section, generators_dir, meta=None):
+def _build_scripted(name, data, generators_dir, meta=None):
     meta = meta or {}
-    gen_name = section["generator"].strip()
+    gen_name = str(data.get("generator", "")).strip()
     if not gen_name:
         raise ConfigError(f"mode '{name}': 'generator' is empty")
-    excluded = {"generator", "description", "docs"}
-    options = {key: value for key, value in section.items() if key not in excluded}
+    options_raw = data.get("options", {})
+    if not isinstance(options_raw, dict):
+        raise ConfigError(f"mode '{name}': 'options' must be an object")
+    options = {str(k): v for k, v in options_raw.items()}
     gen_func = _load_generator(name, gen_name, generators_dir)
 
     def generate(rng):
@@ -114,32 +124,21 @@ def _build_scripted(name, section, generators_dir, meta=None):
     return Mode(name=name, generate=generate, param_names=None, **meta)
 
 
-def _parse_params(name, raw):
-    tokens = split_tokens(raw)
-    if not tokens:
+def _parse_params(name, params_list):
+    if not params_list:
         raise ConfigError(f"mode '{name}': 'params' is empty")
     specs = []
-    for token in tokens:
-        if ":" in token:
-            pname, _, size_str = token.partition(":")
-            pname = pname.strip() or None
-        else:
-            pname, size_str = None, token
-        size_str = size_str.strip()
-        try:
-            nbytes = int(size_str)
-        except ValueError:
+    for i, item in enumerate(params_list):
+        if not isinstance(item, dict) or "bytes" not in item:
             raise ConfigError(
-                f"mode '{name}': invalid byte size '{size_str}' in params")
-        if nbytes < 1:
+                f"mode '{name}': params[{i}] must be an object with a 'bytes' key")
+        nbytes = item["bytes"]
+        if not isinstance(nbytes, int) or nbytes < 1:
             raise ConfigError(
-                f"mode '{name}': byte size must be >= 1 (got {nbytes}) in params")
+                f"mode '{name}': params[{i}].bytes must be a positive integer")
+        pname = str(item["name"]).strip() if "name" in item else None
         specs.append((pname, nbytes))
     return specs
-
-
-def split_tokens(raw):
-    return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def _load_generator(mode_name, gen_name, generators_dir):

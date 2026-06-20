@@ -1,26 +1,31 @@
 """Discovery and loading of sample configuration files.
 
-A sample is one program under test, described by an INI file in `samples/`.
+A sample is one program under test, described by a JSON file in `samples/`.
 The file's name (without extension) is the sample's name.
 
-    [sample]
-    path         = path/to/binary   ; relative to project root, or absolute (required)
-    modes        = cfb, ctr, mac    ; comma-separated list of supported modes (required)
-    cmd          = wine             ; interpreter/wrapper for all platforms (optional)
-    cmd_win      = ...              ; Windows (optional, overrides cmd)
-    cmd_linux    = ...              ; Linux x86-64 (optional, overrides cmd)
-    cmd_linux_arm = ...             ; Linux ARM64 (optional, overrides cmd)
-    cmd_mac      = ...              ; macOS Intel (optional, overrides cmd)
-    cmd_mac_arm  = ...              ; macOS Apple Silicon (optional, overrides cmd)
-    tag          = My label         ; log label; defaults to the filename (optional)
+    {
+      "path":          "path/to/binary",
+      "modes":         [
+        {"name": "belt-cfb", "alias": "cfb"},
+        {"name": "belt-ctr"}
+      ],
+      "cmd":           "wine",
+      "cmd_win":       "...",
+      "cmd_linux":     "...",
+      "cmd_linux_arm": "...",
+      "cmd_mac":       "...",
+      "cmd_mac_arm":   "...",
+      "tag":           "My label"
+    }
+
+Each mode entry is an object with a required "name" and an optional "alias"
+(the token the executable expects instead of the mode name).
 """
 
-import configparser
+import json
 import os
 import platform
 import sys
-
-from src.util import new_ini_parser, split_csv
 
 
 def _platform_cmd_key():
@@ -43,10 +48,10 @@ class Sample:
     def __init__(self, name, path, modes, cmd=None, tag=None, mode_aliases=None):
         self.name = name        # registration name (config file stem)
         self.path = path        # resolved, absolute path to the executable/script
-        self.modes = modes      # list[str] of supported mode names (ASN.1 names)
+        self.modes = modes      # list[str] of supported mode names
         self.cmd = cmd          # optional interpreter, or None
         self.tag = tag          # log label
-        self.mode_aliases = mode_aliases or {}  # ASN.1 name -> token the executable expects
+        self.mode_aliases = mode_aliases or {}  # mode name -> alias the executable expects
 
     def argv(self, mode, params):
         """Build the argument vector for one invocation."""
@@ -58,21 +63,20 @@ class Sample:
 
 def load_sample(name, configs_dir, project_root):
     """Load and validate a single sample by name. Raises ConfigError on problems."""
-    cfg_path = os.path.join(configs_dir, name + ".cfg")
+    cfg_path = os.path.join(configs_dir, name + ".json")
     if not os.path.exists(cfg_path):
         raise ConfigError(f"sample '{name}': config not found ({cfg_path})")
 
-    parser = new_ini_parser()
     try:
-        parser.read(cfg_path, encoding="utf-8")
-    except configparser.Error as exc:
+        with open(cfg_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"sample '{name}': cannot parse {cfg_path}: {exc}")
 
-    if not parser.has_section("sample"):
-        raise ConfigError(f"sample '{name}': missing [sample] section in {cfg_path}")
-    section = parser["sample"]
+    if not isinstance(data, dict):
+        raise ConfigError(f"sample '{name}': expected a JSON object in {cfg_path}")
 
-    raw_path = section.get("path", "").strip()
+    raw_path = str(data.get("path", "")).strip()
     if not raw_path:
         raise ConfigError(f"sample '{name}': 'path' is required in {cfg_path}")
 
@@ -81,25 +85,37 @@ def load_sample(name, configs_dir, project_root):
     if not os.path.exists(resolved):
         raise ConfigError(f"sample '{name}': executable not found: {resolved}")
 
-    modes = split_csv(section.get("modes", ""))
-    if not modes:
+    modes_raw = data.get("modes", [])
+    if not isinstance(modes_raw, list) or not modes_raw:
         raise ConfigError(
-            f"sample '{name}': 'modes' is required (comma-separated) in {cfg_path}")
-
-    raw_aliases = section.get("mode_aliases", "").strip()
+            f"sample '{name}': 'modes' must be a non-empty array in {cfg_path}")
+    modes = []
     mode_aliases = {}
-    for item in split_csv(raw_aliases):
-        if ":" in item:
-            asn1_name, _, alias = item.partition(":")
-            mode_aliases[asn1_name.strip()] = alias.strip()
+    for i, entry in enumerate(modes_raw):
+        if isinstance(entry, str):
+            mode_name = entry.strip()
+        elif isinstance(entry, dict):
+            mode_name = str(entry.get("name", "")).strip()
+            alias = str(entry.get("alias", "")).strip()
+            if alias:
+                mode_aliases[mode_name] = alias
+        else:
+            raise ConfigError(
+                f"sample '{name}': modes[{i}] must be a string or object in {cfg_path}")
+        if not mode_name:
+            raise ConfigError(
+                f"sample '{name}': modes[{i}] has an empty name in {cfg_path}")
+        modes.append(mode_name)
+    if not modes:
+        raise ConfigError(f"sample '{name}': 'modes' is empty in {cfg_path}")
 
     platform_key = _platform_cmd_key()
     cmd = (
-        (section.get(platform_key, "").strip() if platform_key else "") or
-        section.get("cmd", "").strip() or
+        (str(data.get(platform_key, "")).strip() if platform_key else "") or
+        str(data.get("cmd", "")).strip() or
         None
     )
-    tag = section.get("tag", "").strip() or os.path.basename(resolved)
+    tag = str(data.get("tag", "")).strip() or os.path.basename(resolved)
 
     return Sample(name=name, path=resolved, modes=modes, cmd=cmd, tag=tag,
                   mode_aliases=mode_aliases)

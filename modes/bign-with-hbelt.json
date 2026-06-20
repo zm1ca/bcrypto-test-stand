@@ -1,0 +1,7 @@
+{
+  "docs": "STB 34.101.45-2013 (7.1)",
+  "params": [
+    {"name": "key",  "bytes": 32},
+    {"name": "hash", "bytes": 32}
+  ]
+}

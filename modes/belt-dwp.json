@@ -1,0 +1,9 @@
+{
+  "docs": "STB 34.101.31-2020 (7.6 scheme 1)",
+  "params": [
+    {"name": "k", "bytes": 32},
+    {"name": "s", "bytes": 16},
+    {"name": "x", "bytes": 1024},
+    {"name": "i", "bytes": 1024}
+  ]
+}

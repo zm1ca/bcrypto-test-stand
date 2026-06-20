@@ -1,0 +1,10 @@
+{
+  "docs": "STB 34.101.60-2014 (7.4)",
+  "generator": "merge",
+  "options": {
+    "size":     32,
+    "slots":    5,
+    "fill_min": 2,
+    "fill_max": 5
+  }
+}
