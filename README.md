@@ -1,99 +1,196 @@
 # bcrypto-test-stand
 
-A differential test harness. Feeds the same random inputs to two or more programs and checks that all outputs match. Useful for validating one implementation against a reference or cross-checking several builds at once.
+Тестовый стенд для лабораторий, испытывающих СКЗИ в Беларуси.
 
-## Layout
+При испытаниях СКЗИ по методикам, [опубликованным ОАЦ](https://www.oac.gov.by/news/events/event-34), для ряда алгоритмов требуется проводить тесты, подразумевающие сравнение с эталонной реализацией. 
 
-```
-run.py          entry point
-samples/        one INI file per sample
-modes/          one INI file per mode
-generators/     Python generators for irregular modes
-src/            implementation
-bin/            binaries (bin/default/ ships custom bee2 executables)
-```
+Перед началом работы с данным продуктом следует:
+- зарегистрировать (создать JSON-конфиг в `/samples/`) тестируемые/эталонные обрацы
+- зарегистрировать дополнительные режимы тестирования (при необходимости)
 
-## Default samples
+Стенд позволяет провести N тестов в произвольном количестве режимов для 2+ образцов. Режимы тестируются последовательно. Для каждого режима по его JSON-конфигу (`/modes/`) определяется перечень и длины входных параметров (либо специфический генератор из `/generators/`, который следует использовать в данном режиме). Стенд вырабатывает необходимые параметры и вызывает тестовые образцы, проверяя что выводы непустой и совпадают для всех тестовых образцов.
 
-Two bee2 reference executables are shipped in `bin/default/`. They cover different modes and cannot be compared against each other — register your own sample and compare it against whichever one covers the modes you need.
+Результаты тестирования сохраняются в `/reports/` и выводятся в консоль.
 
-| Sample | Modes |
-|--------|-------|
-| `bee2a` | sign, split, merge, kwp, dwp, keywrap |
-| `bee2b` | cfb, ctr, hsh, mac, brng |
+При расхождении печатаются входные данные и вывод каждой программы — чтобы разницу можно было изучить вручную.
 
-## Usage
+**Важно** отметить, что в ряде случаев в эталонах, предоставленных по умолчанию, используются hard-coded параметры. Например, для открытых ключей ЭЦП и разделения секрета. Во всех таких случаях используемые параметры взяты из соответствующих [методик](https://www.oac.gov.by/technical-and-cryptographic-information-protection/activity/test-methods). Дополнительный пример hard-coded параметра - длина генерируемой последовательности в brng-hmac-hbelt -- она составляет 64 блока, поскольку так указано в тесте. Если вам удобно иметь и это значение (n) в качестве параметра при вызове собственного образца -- реализуйте для него значение 64 по умолчанию.
+
+## Структура проекта
 
 ```
-python run.py <sample> <sample> [<sample> ...] [--modes <mode> ...] [-n <n>] [--verbose]
+run.py          точка входа
+samples/        JSON файлы, регистрирующие тестовые образцы. В default/ содержатся эталонные образцы на основе bee2
+modes/          JSON файлы, регистрирующие режимы тестирования (алгоритмы)
+generators/     генераторы для нерегулярных режимов (merge, brng-hmac-hbelt)
+src/            реализация стенда
+bin/            исполняемые файлы (помещайте сюда образцы для тестирования)
 ```
 
-Pick two or more samples that share at least one mode:
+## Проверка доступных образцов и режимов
+
+Вывод доступных образцов для тестирования:
+`python3 run.py list-samples`
+
+Вывод поддерживаемых режимов тестирования:
+`python3 run.py list-modes`
+
+
+## Запуск
 
 ```
-python run.py bee2b mysample
-python run.py bee2b mysample --modes cfb ctr
-python run.py bee2b mysample --modes all -n 1000 --verbose
+python run.py <образец> <образец> [<образец> ...] [--modes <режим> ...] [-n <n>] [--verbose]
 ```
 
-- `--modes` — which modes to run. Defaults to `all`, meaning every mode both samples support.
-- `-n` — iterations per mode (default 500).
-- `--verbose` — print inputs and outputs for every test, not just failures.
+Укажите два или более образца, у которых есть хотя бы один общий режим:
 
-A test passes when every sample produces non-empty stdout and all outputs are identical. On failure all outputs are printed for comparison.
-
-## Adding a sample
-
-Drop an INI file in `samples/`. The filename without `.cfg` is the name you pass on the command line.
-
-```ini
-[sample]
-path          = path/to/binary  ; relative to project root, or absolute (required)
-modes         = cfb, ctr, mac   ; comma-separated list of supported modes (required)
-cmd           = wine            ; interpreter/wrapper, all platforms (optional)
-cmd_win       = ...             ; Windows — overrides cmd (optional)
-cmd_linux     = ...             ; Linux x86-64 — overrides cmd (optional)
-cmd_linux_arm = ...             ; Linux ARM64 — overrides cmd (optional)
-cmd_mac       = ...             ; macOS Intel — overrides cmd (optional)
-cmd_mac_arm   = ...             ; macOS Apple Silicon — overrides cmd (optional)
-tag           = My label        ; log label; defaults to the filename (optional)
+```
+python run.py bee2recent mybuild
+python run.py bee2recent mybuild --modes belt-kwp belt-dwp
+python run.py bee2recent mybuild --modes all -n 1000 --verbose
 ```
 
-Each sample is invoked as `[cmd] <path> <mode> <param1> <param2> ...`. The most specific platform key wins; `cmd` is the fallback for any platform not listed.
+- `--modes` — какие режимы прогнать, либо `all` для всех режимов, поддерживаемых каждым из выбранных образцов. По умолчанию `all`.
+- `-n` — число итераций на режим (по умолчанию 500).
+- `--verbose` — печатать входные данные и вывод для каждого теста, а не только для упавших.
 
-## Adding a mode
 
-Drop an INI file in `modes/`. The filename without `.cfg` is the mode token passed as the first argument to every sample.
+## Добавление образца
 
-**Declarative** — fixed-size random hex parameters:
+Положите JSON-файл в `samples/`; имя файла без `.json` — это имя, которое вы будете передавать в командной строке в качетве названия продукта.
 
-```ini
-[mode]
-params = x:2048, key:32, s:16
+```json
+{
+  "path": "bin/mybuild.exe",
+  "cmd": "wine",
+  "modes": [
+    {"name": "belt-cfb", "alias": "cfb"},
+    {"name": "belt-ctr", "alias": "ctr"},
+    {"name": "belt-mac"}
+  ],
+  "tag": "mybuild"
+}
 ```
 
-Each entry is `name:bytes`; the name is used only in log output.
+| Ключ | Обязательность | Значение |
+|------|------------|----------|
+| `path` | да | Путь к исполняемому файлу — относительно корня проекта или абсолютный |
+| `modes` | да | Режимы, которые поддерживает программа (см. ниже) |
+| `cmd` | нет | Интерпретатор или обёртка для запуска, например `wine`, `luajit` |
+| `tag` | нет | Метка в выводе. По умолчанию — имя исполняемого файла |
 
-**Scripted** — for irregular generation:
+Каждая запись в `modes` называет режим, поддерживаемый программой. Программа может ожидать в командной строке имя режима в формате, отличном от зарегистрированных здесь (например, `cfb` вместо `belt-cfb`). Чтобы дать стенду понять, что в вашей программе под `cfb` понимается `belt-cfb`, укажите `alias` для данного режима при регистрации образца: `{"name": "belt-cfb", "alias": "cfb"}`.
 
-```ini
-[mode]
-generator = merge
-size      = 32
-slots     = 5
-fill_min  = 2
-fill_max  = 5
+Каждый образец вызывается как `[cmd] <path> <режим-или-alias> <параметр1> <параметр2> ...`, и сравнивается его stdout.
+
+### Интерпретаторы по платформам
+
+`cmd` действует на всех платформах. Чтобы переопределить его для конкретной платформы, добавьте соответствующий ключ — побеждает самый специфичный:
+
+| Ключ | Платформа |
+|------|-----------|
+| `cmd_win` | Windows |
+| `cmd_linux` | Linux x86-64 |
+| `cmd_linux_arm` | Linux ARM64 |
+| `cmd_mac` | macOS Intel |
+| `cmd_mac_arm` | macOS Apple Silicon |
+
+Удобно, когда, например, Windows-`.exe` запускается на Windows нативно, а на остальных платформах — через `wine`.
+
+## Добавление режима
+
+Режим — это рецепт генерации входных данных одного теста. Положите JSON-файл в `modes/`; имя файла без `.json` — каноническое имя режима. Режим бывает **декларативным** либо **скриптовым** — ровно одно из двух.
+
+Необязательная строка `docs` (например, ссылка на стандарт) показывается командой `list-modes`.
+
+### Декларативный режим — случайные hex-параметры фиксированного размера
+
+```json
+{
+  "docs": "STB 34.101.31-2020 (7.3)",
+  "params": [
+    {"name": "x",   "bytes": 2048},
+    {"name": "key", "bytes": 32},
+    {"name": "s",   "bytes": 16}
+  ]
+}
 ```
 
-Points to `generators/merge.py`. Any extra keys are passed to the generator as options.
+Каждый параметр становится одним аргументом командной строки из `bytes` случайных байт в виде шестнадцатеричной строки в верхнем регистре. `name` используется только для подписи в выводе.
 
-## Writing a generator
+### Скриптовый — специфическая логика при генерации параметров теста
+
+Когда фиксированных размеров недостаточно, укажите режиму генератор в `generators/`:
+
+```json
+{
+  "docs": "STB 34.101.60-2014 (7.4)",
+  "generator": "merge",
+  "options": {
+    "size":     32,
+    "slots":    5,
+    "fill_min": 2,
+    "fill_max": 5
+  }
+}
+```
+
+`generator` называет `generators/<имя>.py`. Всё из `options` передаётся ему. Необязательный массив `param_names` подписывает сгенерированные аргументы в выводе; без него они показываются как `Param1`, `Param2` и т. д.
+
+Так, например, длина параметров `key` и `synchro` для `brng-hmac-hbelt` зависит от номера текущего теста: `(i mod 64) + 1` для key, `(i mod 32) + 1` для synchro, где i - номер теста.
+
+Тест merge подразумевает, что часть из пяти аргументов будут пустыми (""). Передача пустых аргументов в данном случае позволяет определить индексы используемых открытых ключей (см. описание теста в методике испытаний).
+
+## Написание генератора для скриптового режима
+
+Генератор — это модуль на Python в `generators/`, определяющий единственную функцию `generate`, которая возвращает упорядоченный список строк-аргументов:
 
 ```python
 from src.util import rng_hex
 
-def generate(rng, options):
-    # rng     : random.Random instance
-    # options : dict of extra [mode] keys as strings
-    return ["AB12...", "CD34..."]  # ordered list of argument strings
+def generate(rng, options, index):
+    # rng     : random.Random — вся случайность проходит через этот экземпляр
+    # options : dict[str, str] — объект "options" режима
+    # index   : 1-based номер теста, полезен для размеров, зависящих от индекса
+    size = int(options.get("size", 32))
+    return [rng_hex(rng, size), rng_hex(rng, size)]
 ```
+
+`rng_hex(rng, n_bytes)` возвращает `n_bytes` случайных байт в виде hex в верхнем регистре. Пустая строка в слоте передаёт пустой аргумент — так `merge` оставляет часть долей незаполненными.
+
+Имя генератора следует указывать в поле `"generator"` при регистрации режима.
+
+## Поддерживаемые режимы
+
+В `bin/default/` поставляются две эталонные сборки bee2: `bee2recent.exe` (актуальная) и `bee2old.exe`. Вместе они покрывают разные, непересекающиеся режимы, поэтому сравнивать их друг с другом нельзя — зарегистрируйте свой образец и сравните его с той сборкой, что покрывает нужные режимы.
+
+| Режим | Документ | Реализация в `bin/default/` |
+|-------|----------|-----------------------------|
+| `belt-cfb` | STB 34.101.31-2020 (7.3) | `bee2old` |
+| `belt-ctr` | STB 34.101.31-2020 (7.4) | `bee2old` |
+| `belt-mac` | STB 34.101.31-2020 (7.5) | `bee2old` |
+| `belt-hash` | STB 34.101.31-2020 (7.8) | `bee2old` |
+| `belt-dwp` | STB 34.101.31-2020 (7.6, схема 1) | `bee2recent` |
+| `belt-kwp` | STB 34.101.31-2020 (7.7) | `bee2recent` |
+| `bign-with-hbelt` | STB 34.101.45-2013 (7.1) | `bee2recent` |
+| `bign-keytransport` | STB 34.101.45-2013 (7.2) | `bee2recent` |
+| `bels-share-split` | STB 34.101.60-2014 (7.3) | `bee2recent` |
+| `bels-share-merge` | STB 34.101.60-2014 (7.4) | `bee2recent` |
+| `brng-ctr-hbelt` | STB 34.101.47-2017 (6.2) | — |
+| `brng-hmac-hbelt` | STB 34.101.47-2017 (6.3) | `bee2recent` |
+| `hotp-hbelt` | STB 34.101.47-2013 (A.7) | `bee2recent` |
+
+Прочерк означает, что режим определён, но ни одна из эталонных сборок его пока не реализует.
+
+## Эталонные реализации
+
+C исходными текстами `bee2recent.exe` можно ознакомиться [здесь](https://github.com/zm1ca/bee2stand). Исходные тексты для `bee2old.exe` утрачены.
+
+В качестве эталонных реализаций используется [bee2](https://github.com/agievich/bee2) доработанная исключительно в рамках адаптации к тестам методик и в части вывода необходимых cli-интерфейсов для поддерживаемых режимов.
+
+Следует отметить, что `эталоном` в смысле методик испытаний называется СКЗИ, прошедшее процедуру сертификации, и на момент написания данного текста **bee2 не является сертифицированным продуктом**.
+
+## В разработке
+
+- Бумеранг-тесты подразумевающие, например, многократное шифрование и расшифрование данных одним образцом и проверку результата.
+- Тесты известного ответа, указанные в методиках испытаний.
