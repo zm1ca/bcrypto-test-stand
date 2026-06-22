@@ -4,8 +4,7 @@
     {"name": "belt-cfb",       "alias": "cfb"},
     {"name": "belt-ctr",       "alias": "ctr"},
     {"name": "belt-hash",      "alias": "hsh"},
-    {"name": "belt-mac",       "alias": "mac"},
-    {"name": "brng-ctr-hbelt", "alias": "brng"}
+    {"name": "belt-mac",       "alias": "mac"}
   ],
   "tag": "bee2b"
 }

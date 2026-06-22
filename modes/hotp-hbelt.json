@@ -1,0 +1,13 @@
+{
+  "docs": "STB 34.101.47-2013 (A.7)",
+  "params": [
+    {
+      "name": "key",
+      "bytes": 32
+    },
+    {
+      "name": "counter",
+      "bytes": 8
+    }
+  ]
+}
