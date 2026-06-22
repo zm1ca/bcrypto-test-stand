@@ -10,6 +10,9 @@ __pycache__/
 .claude/
 CLAUDE.md
 
+# Reports
+reports/*.txt
+
 # Sample configs — only the shipped bee2 configs are tracked
 samples/*
 !samples/bee2a.json

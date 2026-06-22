@@ -43,8 +43,8 @@ class Mode:
         self._generate = generate
         self.param_names = param_names
 
-    def generate(self, rng):
-        return self._generate(rng)
+    def generate(self, rng, index=0):
+        return self._generate(rng, index)
 
     def label_for(self, index):
         """Human-readable label for the parameter at position `index` (0-based)."""
@@ -97,7 +97,7 @@ def _build_declarative(name, params_list, meta=None):
     names = [pname for (pname, _) in specs]
     sizes = [nbytes for (_, nbytes) in specs]
 
-    def generate(rng):
+    def generate(rng, index=0):
         return [rng_hex(rng, nbytes) for nbytes in sizes]
 
     return Mode(name=name, generate=generate, param_names=names, **meta)
@@ -114,14 +114,22 @@ def _build_scripted(name, data, generators_dir, meta=None):
     options = {str(k): v for k, v in options_raw.items()}
     gen_func = _load_generator(name, gen_name, generators_dir)
 
-    def generate(rng):
-        result = gen_func(rng, options)
+    param_names_raw = data.get("param_names")
+    if param_names_raw is not None:
+        if not isinstance(param_names_raw, list):
+            raise ConfigError(f"mode '{name}': 'param_names' must be an array")
+        param_names = [str(n).strip() or None for n in param_names_raw]
+    else:
+        param_names = None
+
+    def generate(rng, index=0):
+        result = gen_func(rng, options, index)
         if not isinstance(result, list) or not all(isinstance(x, str) for x in result):
             raise ConfigError(
                 f"mode '{name}': generator '{gen_name}' must return a list of strings")
         return result
 
-    return Mode(name=name, generate=generate, param_names=None, **meta)
+    return Mode(name=name, generate=generate, param_names=param_names, **meta)
 
 
 def _parse_params(name, params_list):

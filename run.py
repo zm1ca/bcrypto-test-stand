@@ -18,6 +18,8 @@ Exit codes:
 """
 
 import argparse
+import datetime
+import io
 import json
 import os
 import random
@@ -31,9 +33,37 @@ from src.config import ConfigError, load_sample          # noqa: E402
 from src.modes import load_mode, mode_definition_exists  # noqa: E402
 from src.runner import run_mode                          # noqa: E402
 
-SAMPLES_DIR = os.path.join(PROJECT_ROOT, "samples")
-MODES_DIR = os.path.join(PROJECT_ROOT, "modes")
+SAMPLES_DIR    = os.path.join(PROJECT_ROOT, "samples")
+MODES_DIR      = os.path.join(PROJECT_ROOT, "modes")
 GENERATORS_DIR = os.path.join(PROJECT_ROOT, "generators")
+REPORTS_DIR    = os.path.join(PROJECT_ROOT, "reports")
+
+
+class _Tee:
+    """Writes to the real stdout and accumulates a copy in a buffer."""
+    def __init__(self, real):
+        self._real = real
+        self._buf = io.StringIO()
+
+    def write(self, s):
+        self._real.write(s)
+        self._buf.write(s)
+
+    def flush(self):
+        self._real.flush()
+
+    def getvalue(self):
+        return self._buf.getvalue()
+
+
+def _save_report(content, sample_names):
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{'_'.join(sample_names)}_{ts}.txt"
+    path = os.path.join(REPORTS_DIR, filename)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+    print(f"Report saved: {os.path.relpath(path, PROJECT_ROOT)}", file=sys.stderr)
 
 
 def parse_args(argv=None):
@@ -90,6 +120,15 @@ def cmd_list_samples():
     return 0
 
 
+def _mode_param_names(data):
+    if "params" in data:
+        return [str(p["name"]).strip() for p in data["params"]
+                if "name" in p and str(p.get("name", "")).strip()]
+    if "param_names" in data:
+        return [str(n).strip() for n in data["param_names"] if str(n).strip()]
+    return []
+
+
 def cmd_list_modes():
     entries = sorted(
         f for f in os.listdir(MODES_DIR) if f.endswith(".json")
@@ -107,18 +146,26 @@ def cmd_list_modes():
                 data = json.load(f)
             docs = str(data.get("docs", "")).strip()
             desc = str(data.get("description", "")).strip()
+            params = _mode_param_names(data)
+            generator = str(data.get("generator", "")).strip() if not params else ""
         except (OSError, json.JSONDecodeError):
             docs = desc = ""
-        rows.append((name, docs, desc))
+            params = []
+            generator = ""
+        rows.append((name, docs, desc, params, generator))
 
+    rows.sort(key=lambda r: (r[1] == "", r[1].lower(), r[0]))
     w_name = max(len(r[0]) for r in rows)
 
-    for name, docs, desc in rows:
+    for name, docs, desc, params, generator in rows:
         parts = [f"  {name:<{w_name}}"]
-        if docs:
-            parts.append(f"  {docs}")
-        elif desc:
-            parts.append(f"  {desc}")
+        label = docs or desc
+        if label:
+            parts.append(f"  {label}")
+        if params:
+            parts.append(f"  ({', '.join(params)})")
+        elif generator:
+            parts.append(f"  [param generator: {generator}.py]")
         print("".join(parts))
     return 0
 
@@ -183,24 +230,32 @@ def main(argv=None):
               file=sys.stderr)
         return 2
 
-    rng = random.Random()
-    any_failure = False
-    mode_stats = {}  # mode_name -> (success, failure, total)
+    tee = _Tee(sys.stdout)
+    sys.stdout = tee
 
-    for name in mode_names:
-        try:
-            mode = load_mode(name, MODES_DIR, GENERATORS_DIR)
-        except ConfigError as exc:
-            print(f"Skipping mode '{name}': {exc}", file=sys.stderr)
-            any_failure = True
-            continue
-        success, failures, errored = run_mode(mode, samples, args.n, args.verbose, rng)
-        total = success + failures
-        mode_stats[name] = (success, failures, total)
-        if failures or errored:
-            any_failure = True
+    try:
+        rng = random.Random()
+        any_failure = False
+        mode_stats = {}  # mode_name -> (success, failure, total)
 
-    _print_summary(mode_stats)
+        for name in mode_names:
+            try:
+                mode = load_mode(name, MODES_DIR, GENERATORS_DIR)
+            except ConfigError as exc:
+                print(f"Skipping mode '{name}': {exc}", file=sys.stderr)
+                any_failure = True
+                continue
+            success, failures, errored = run_mode(mode, samples, args.n, args.verbose, rng)
+            total = success + failures
+            mode_stats[name] = (success, failures, total)
+            if failures or errored:
+                any_failure = True
+
+        _print_summary(mode_stats)
+    finally:
+        sys.stdout = tee._real
+        _save_report(tee.getvalue(), names)
+
     return 1 if any_failure else 0
 
 

@@ -13,7 +13,7 @@ keys from the mode's [mode] section). Generators convert option types as needed.
 from src.util import rng_hex
 
 
-def generate(rng, options):
+def generate(rng, options, index=0):
     size = int(options.get("size", 32))
     slots = int(options.get("slots", 5))
     fill_min = int(options.get("fill_min", 2))

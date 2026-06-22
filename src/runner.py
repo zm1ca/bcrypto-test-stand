@@ -59,7 +59,7 @@ def run_mode(mode, samples, n, verbose, rng):
 
     for index in range(1, n + 1):
         try:
-            params = mode.generate(rng)
+            params = mode.generate(rng, index)
             results = [_run_sample(s, mode.name, params) for s in samples]
             outputs = [r[0] for r in results]
             for i, (_, t) in enumerate(results):

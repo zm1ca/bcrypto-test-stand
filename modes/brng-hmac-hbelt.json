@@ -1,0 +1,5 @@
+{
+  "docs": "STB 34.101.47-2017 (6.3)",
+  "generator": "brng-hmac-hbelt",
+  "param_names": ["key", "synchro"]
+}
