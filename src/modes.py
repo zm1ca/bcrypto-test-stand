@@ -31,7 +31,7 @@ import importlib.util
 import json
 import os
 
-from src.config import ConfigError
+from src.sample import ConfigError
 from src.util import rng_hex
 
 

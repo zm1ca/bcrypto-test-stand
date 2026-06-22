@@ -29,7 +29,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.config import ConfigError, load_sample          # noqa: E402
+from src.sample import ConfigError, load_sample          # noqa: E402
 from src.modes import load_mode, mode_definition_exists  # noqa: E402
 from src.runner import run_mode                          # noqa: E402
 
@@ -229,6 +229,10 @@ def main(argv=None):
         print("Error: no modes to run after applying support/definition checks.",
               file=sys.stderr)
         return 2
+
+    asked_all = (len(args.modes) == 1 and args.modes[0] == "all")
+    if asked_all:
+        print(f"Modes to test ({len(mode_names)}): {', '.join(mode_names)}")
 
     tee = _Tee(sys.stdout)
     sys.stdout = tee
