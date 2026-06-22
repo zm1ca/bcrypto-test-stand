@@ -9,6 +9,5 @@
     {"name": "bign-keytransport", "alias": "keywrap"},
     {"name": "brng-hmac-hbelt"},
     {"name": "hotp-hbelt"}
-  ],
-  "tag": "bee2a"
+  ]
 }
