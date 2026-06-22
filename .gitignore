@@ -15,8 +15,8 @@ reports/*.txt
 
 # Sample configs — only the shipped bee2 configs are tracked
 samples/*
-!samples/bee2a.json
-!samples/bee2b.json
+!samples/bee2recent.json
+!samples/bee2old.json
 
 # macOS metadata
 .DS_Store

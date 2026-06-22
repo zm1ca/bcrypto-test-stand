@@ -1,0 +1,14 @@
+{
+  "path": "bin/default/bee2recent.exe",
+  "modes": [
+    {"name": "bign-with-hbelt",   "alias": "sign"},
+    {"name": "bels-share-split",  "alias": "split"},
+    {"name": "bels-share-merge",  "alias": "merge"},
+    {"name": "belt-kwp",          "alias": "kwp"},
+    {"name": "belt-dwp",          "alias": "dwp"},
+    {"name": "bign-keytransport", "alias": "keywrap"},
+    {"name": "brng-hmac-hbelt"},
+    {"name": "hotp-hbelt"}
+  ],
+  "tag": "bee2a"
+}

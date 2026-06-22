@@ -1,0 +1,10 @@
+{
+  "path": "bin/default/bee2old.exe",
+  "modes": [
+    {"name": "belt-cfb",       "alias": "cfb"},
+    {"name": "belt-ctr",       "alias": "ctr"},
+    {"name": "belt-hash",      "alias": "hsh"},
+    {"name": "belt-mac",       "alias": "mac"}
+  ],
+  "tag": "bee2b"
+}
