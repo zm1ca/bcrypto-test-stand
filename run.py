@@ -4,12 +4,14 @@ Differential test harness.
 
 Compare the stdout of two or more programs ("samples") on the same randomly
 generated inputs. Samples and input recipes ("modes") are each defined by small
-INI files under samples/ and modes/. See README.md for details.
+JSON files under samples/ and modes/. See README.md for details.
 
 Usage:
     python run.py SAMPLE SAMPLE [SAMPLE ...] [--modes M ...] [-n N] [--verbose]
+    python run.py static SAMPLE [CATEGORY] [--verbose]
     python run.py list-samples
     python run.py list-modes
+    python run.py list-static
 
 Exit codes:
     0  every comparison passed
@@ -32,11 +34,17 @@ if PROJECT_ROOT not in sys.path:
 from src.sample import ConfigError, load_sample          # noqa: E402
 from src.modes import load_mode, mode_definition_exists  # noqa: E402
 from src.runner import run_mode                          # noqa: E402
+from src.static_runner import categories as static_categories  # noqa: E402
+from src.static_runner import list_static, run_static    # noqa: E402
+from src.boomerang_runner import categories as boomerang_categories  # noqa: E402
+from src.boomerang_runner import list_boomerang, run_boomerang  # noqa: E402
 
 SAMPLES_DIR    = os.path.join(PROJECT_ROOT, "samples")
 MODES_DIR      = os.path.join(PROJECT_ROOT, "modes")
 GENERATORS_DIR = os.path.join(PROJECT_ROOT, "generators")
 REPORTS_DIR    = os.path.join(PROJECT_ROOT, "reports")
+STATIC_DIR     = os.path.join(PROJECT_ROOT, "static")
+BOOMERANG_DIR  = os.path.join(PROJECT_ROOT, "boomerang")
 
 
 class _Tee:
@@ -71,14 +79,18 @@ def parse_args(argv=None):
         description="Compare stdout of 2+ programs on identical random inputs.",
         epilog=(
             "Subcommands:\n"
+            "  static          run known-answer tests for one sample by category\n"
+            "  boomerang       run round-trip tests for one sample by category\n"
             "  list-samples    list registered samples and their supported modes\n"
-            "  list-modes      list available mode definitions"
+            "  list-modes      list available mode definitions\n"
+            "  list-static     list known-answer tests by category\n"
+            "  list-boomerang  list round-trip tests by category"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "samples", nargs="+",
-        help="names of registered samples (samples/<name>.cfg)")
+        help="names of registered samples (samples/<name>.json)")
     parser.add_argument(
         "--modes", nargs="+", default=["all"], metavar="MODE",
         help='modes to run, or "all" for the modes supported by every sample '
@@ -170,6 +182,87 @@ def cmd_list_modes():
     return 0
 
 
+def cmd_static(argv):
+    parser = argparse.ArgumentParser(
+        prog="run.py static",
+        description="Run known-answer tests for one sample against fixed methodics "
+                    "inputs.")
+    parser.add_argument("sample", help="name of a registered sample")
+    parser.add_argument(
+        "category", nargs="?", default="all",
+        help='category to run (folder under static/), or "all" (default)')
+    parser.add_argument(
+        "--verbose", action="store_true",
+        help="print every test, not just failures")
+    args = parser.parse_args(argv)
+
+    try:
+        sample = load_sample(args.sample, SAMPLES_DIR, PROJECT_ROOT)
+    except ConfigError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+
+    if args.category == "all":
+        selected = static_categories(STATIC_DIR)
+    else:
+        selected = [args.category]
+    if not selected:
+        print("Error: no static test categories found in static/.", file=sys.stderr)
+        return 2
+
+    tee = _Tee(sys.stdout)
+    sys.stdout = tee
+    try:
+        _, failure, _ = run_static(sample, selected, STATIC_DIR, args.verbose)
+    finally:
+        sys.stdout = tee._real
+        _save_report(tee.getvalue(), [args.sample, "static"])
+    return 1 if failure else 0
+
+
+def cmd_boomerang(argv):
+    parser = argparse.ArgumentParser(
+        prog="run.py boomerang",
+        description="Run round-trip (forward+inverse) tests for one sample.")
+    parser.add_argument("sample", help="name of a registered sample")
+    parser.add_argument(
+        "category", nargs="?", default="all",
+        help='category to run (folder under boomerang/), or "all" (default)')
+    parser.add_argument(
+        "-n", "--rounds", dest="rounds", type=int, default=None,
+        help="rounds per test (default: each test's own 'rounds')")
+    parser.add_argument(
+        "--verbose", action="store_true",
+        help="print every test, not just failures")
+    args = parser.parse_args(argv)
+
+    try:
+        sample = load_sample(args.sample, SAMPLES_DIR, PROJECT_ROOT)
+    except ConfigError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+
+    if args.category == "all":
+        selected = boomerang_categories(BOOMERANG_DIR)
+    else:
+        selected = [args.category]
+    if not selected:
+        print("Error: no boomerang test categories found in boomerang/.",
+              file=sys.stderr)
+        return 2
+
+    tee = _Tee(sys.stdout)
+    sys.stdout = tee
+    try:
+        rng = random.Random()
+        _, failure, _ = run_boomerang(sample, selected, BOOMERANG_DIR, rng,
+                                      args.rounds, args.verbose)
+    finally:
+        sys.stdout = tee._real
+        _save_report(tee.getvalue(), [args.sample, "boomerang"])
+    return 1 if failure else 0
+
+
 def select_modes(requested, samples):
     """Return the ordered list of mode names to run, applying the skip rules.
 
@@ -195,7 +288,7 @@ def select_modes(requested, samples):
                 continue
         if not mode_definition_exists(mode, MODES_DIR):
             print(f"Skipping mode '{mode}': no definition found "
-                  f"(expected {os.path.join('modes', mode + '.cfg')})",
+                  f"(expected {os.path.join('modes', mode + '.json')})",
                   file=sys.stderr)
             continue
         selected.append(mode)
@@ -208,6 +301,14 @@ def main(argv=None):
         return cmd_list_samples()
     if argv and argv[0] == "list-modes":
         return cmd_list_modes()
+    if argv and argv[0] == "list-static":
+        return list_static(STATIC_DIR)
+    if argv and argv[0] == "list-boomerang":
+        return list_boomerang(BOOMERANG_DIR)
+    if argv and argv[0] == "static":
+        return cmd_static(argv[1:])
+    if argv and argv[0] == "boomerang":
+        return cmd_boomerang(argv[1:])
 
     args = parse_args(argv)
 

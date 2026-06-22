@@ -1,0 +1,11 @@
+{
+  "mode": "belt-hash-file",
+  "doc": "STB 34.101.31-2020",
+  "tests": [
+    {
+      "id": "BELT.HSH.4",
+      "params": [{"file": "fixtures/hsh4.bin"}],
+      "output": "98001732AC6BD9A3B03B66886320EC8A3E43825581E10779130B02FBD67E21E5"
+    }
+  ]
+}

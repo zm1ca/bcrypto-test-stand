@@ -1,0 +1,30 @@
+{
+  "mode": "hotp-hbelt",
+  "doc": "STB 34.101.47-2013",
+  "tests": [
+    {
+      "id": "HOTP.HBELT.1",
+      "params": [
+        "E9DEE72C8F0C0FA62DDB49F46F73964706075316ED247A3739CBA38303A98BF6",
+        "BE32971343FC9A48"
+      ],
+      "output": "21157984"
+    },
+    {
+      "id": "HOTP.HBELT.2",
+      "params": [
+        "E9DEE72C8F0C0FA62DDB49F46F73964706075316ED247A3739CBA38303A98BF6",
+        "BE32971343FC9A49"
+      ],
+      "output": "17877985"
+    },
+    {
+      "id": "HOTP.HBELT.3",
+      "params": [
+        "E9DEE72C8F0C0FA62DDB49F46F73964706075316ED247A3739CBA38303A98BF6",
+        "BE32971343FC9A4A"
+      ],
+      "output": "26078636"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "id": "BELT.KWP.4",
+  "doc": "STB 34.101.31-2020",
+  "rounds": 10000,
+  "inputs": [
+    {
+      "name": "protection",
+      "bytes": 32
+    },
+    {
+      "name": "transport",
+      "bytes": 32
+    },
+    {
+      "name": "header",
+      "bytes": 16
+    }
+  ],
+  "steps": [
+    {
+      "mode": "belt-kwp",
+      "params": [
+        "transport",
+        "header",
+        "protection"
+      ],
+      "out": "wrapped"
+    },
+    {
+      "mode": "belt-kwp-decrypt",
+      "params": [
+        "wrapped",
+        "header",
+        "protection"
+      ],
+      "out": "dec"
+    }
+  ],
+  "assert_equal": [
+    "dec",
+    "transport"
+  ]
+}

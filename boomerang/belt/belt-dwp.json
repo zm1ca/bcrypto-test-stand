@@ -1,0 +1,50 @@
+{
+  "id": "BELT.DWP.4",
+  "doc": "STB 34.101.31-2020",
+  "rounds": 10000,
+  "inputs": [
+    {
+      "name": "key",
+      "bytes": 32
+    },
+    {
+      "name": "s",
+      "bytes": 16
+    },
+    {
+      "name": "x",
+      "bytes": 1024
+    },
+    {
+      "name": "i",
+      "bytes": 1024
+    }
+  ],
+  "steps": [
+    {
+      "mode": "belt-dwp",
+      "params": [
+        "key",
+        "s",
+        "x",
+        "i"
+      ],
+      "out": "ctmac"
+    },
+    {
+      "mode": "belt-dwp-decrypt",
+      "params": [
+        "key",
+        "s",
+        "ctmac.head:8",
+        "ctmac.tail:8",
+        "i"
+      ],
+      "out": "dec"
+    }
+  ],
+  "assert_equal": [
+    "dec",
+    "x"
+  ]
+}

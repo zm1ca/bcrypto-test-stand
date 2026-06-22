@@ -1,0 +1,43 @@
+{
+  "id": "BELT.CTR.4",
+  "doc": "STB 34.101.31-2020",
+  "rounds": 10000,
+  "inputs": [
+    {
+      "name": "x",
+      "bytes": 2048
+    },
+    {
+      "name": "key",
+      "bytes": 32
+    },
+    {
+      "name": "s",
+      "bytes": 16
+    }
+  ],
+  "steps": [
+    {
+      "mode": "belt-ctr",
+      "params": [
+        "x",
+        "key",
+        "s"
+      ],
+      "out": "y"
+    },
+    {
+      "mode": "belt-ctr",
+      "params": [
+        "y",
+        "key",
+        "s"
+      ],
+      "out": "x2"
+    }
+  ],
+  "assert_equal": [
+    "x2",
+    "x"
+  ]
+}

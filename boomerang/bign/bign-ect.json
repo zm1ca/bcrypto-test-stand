@@ -1,0 +1,42 @@
+{
+  "id": "BIGN.ECT.3",
+  "doc": "STB 34.101.45-2013",
+  "rounds": 10000,
+  "inputs": [
+    {
+      "name": "transport",
+      "bytes": 32
+    },
+    {
+      "name": "header",
+      "bytes": 16
+    },
+    {
+      "name": "onetime",
+      "bytes": 32
+    }
+  ],
+  "steps": [
+    {
+      "mode": "bign-keytransport",
+      "params": [
+        "transport",
+        "header",
+        "onetime"
+      ],
+      "out": "token"
+    },
+    {
+      "mode": "bign-keytransport-parse",
+      "params": [
+        "token",
+        "header"
+      ],
+      "out": "dec"
+    }
+  ],
+  "assert_equal": [
+    "dec",
+    "transport"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "id": "BIGN.ECS.3",
+  "doc": "STB 34.101.45-2013",
+  "rounds": 10000,
+  "inputs": [
+    {
+      "name": "h",
+      "bytes": 32
+    }
+  ],
+  "steps": [
+    {
+      "mode": "bign-gek",
+      "params": [
+        "@1F66B5B84B7339674533F0329C74F21834281FED0732429E0C79235FC273E269",
+        "h"
+      ],
+      "out": "k"
+    },
+    {
+      "mode": "bign-with-hbelt",
+      "params": [
+        "k",
+        "h"
+      ],
+      "out": "sig"
+    },
+    {
+      "mode": "bign-verify",
+      "params": [
+        "sig",
+        "h"
+      ],
+      "out": "chk"
+    }
+  ],
+  "assert_equal": [
+    "chk",
+    "@1"
+  ]
+}
