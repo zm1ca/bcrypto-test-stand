@@ -1,0 +1,5 @@
+{
+  "docs": "STB 34.101.47-2017 (6.1)",
+  "generator": "hmac-hbelt",
+  "param_names": ["x", "key"]
+}
