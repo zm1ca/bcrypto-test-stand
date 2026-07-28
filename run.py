@@ -192,6 +192,9 @@ def cmd_static(argv):
         "category", nargs="?", default="all",
         help='category to run (folder under static/), or "all" (default)')
     parser.add_argument(
+        "--modes", nargs="+", default=None, metavar="MODE",
+        help="run only these modes (e.g. belt-ctr); default: all modes in the category")
+    parser.add_argument(
         "--verbose", action="store_true",
         help="print every test, not just failures")
     args = parser.parse_args(argv)
@@ -210,10 +213,12 @@ def cmd_static(argv):
         print("Error: no static test categories found in static/.", file=sys.stderr)
         return 2
 
+    mode_filter = set(args.modes) if args.modes else None
     tee = _Tee(sys.stdout)
     sys.stdout = tee
     try:
-        _, failure, _ = run_static(sample, selected, STATIC_DIR, args.verbose)
+        _, failure, _ = run_static(sample, selected, STATIC_DIR, args.verbose,
+                                   mode_filter)
     finally:
         sys.stdout = tee._real
         _save_report(tee.getvalue(), [args.sample, "static"])
@@ -228,6 +233,9 @@ def cmd_boomerang(argv):
     parser.add_argument(
         "category", nargs="?", default="all",
         help='category to run (folder under boomerang/), or "all" (default)')
+    parser.add_argument(
+        "--modes", nargs="+", default=None, metavar="MODE",
+        help="run only tests using these modes (e.g. belt-ctr); default: all")
     parser.add_argument(
         "-n", "--rounds", dest="rounds", type=int, default=None,
         help="rounds per test (default: each test's own 'rounds')")
@@ -251,12 +259,13 @@ def cmd_boomerang(argv):
               file=sys.stderr)
         return 2
 
+    mode_filter = set(args.modes) if args.modes else None
     tee = _Tee(sys.stdout)
     sys.stdout = tee
     try:
         rng = random.Random()
         _, failure, _ = run_boomerang(sample, selected, BOOMERANG_DIR, rng,
-                                      args.rounds, args.verbose)
+                                      args.rounds, args.verbose, mode_filter)
     finally:
         sys.stdout = tee._real
         _save_report(tee.getvalue(), [args.sample, "boomerang"])

@@ -45,20 +45,23 @@ class ConfigError(Exception):
 
 
 class Sample:
-    def __init__(self, name, path, modes, cmd=None, tag=None, mode_aliases=None):
+    def __init__(self, name, path, modes, cmd=None, tag=None, mode_aliases=None,
+                 mode_appends=None):
         self.name = name        # registration name (config file stem)
         self.path = path        # resolved, absolute path to the executable/script
         self.modes = modes      # list[str] of supported mode names
         self.cmd = cmd          # optional interpreter, or None
         self.tag = tag          # log label
         self.mode_aliases = mode_aliases or {}  # mode name -> alias the executable expects
+        self.mode_appends = mode_appends or {}  # mode name -> fixed args appended after params
 
     def argv(self, mode, params):
         """Build the argument vector for one invocation."""
         effective_mode = self.mode_aliases.get(mode, mode)
+        tail = self.mode_appends.get(mode, [])
         if self.cmd:
-            return [self.cmd, self.path, effective_mode, *params]
-        return [self.path, effective_mode, *params]
+            return [self.cmd, self.path, effective_mode, *params, *tail]
+        return [self.path, effective_mode, *params, *tail]
 
 
 def load_sample(name, configs_dir, project_root):
@@ -91,6 +94,7 @@ def load_sample(name, configs_dir, project_root):
             f"sample '{name}': 'modes' must be a non-empty array in {cfg_path}")
     modes = []
     mode_aliases = {}
+    mode_appends = {}
     for i, entry in enumerate(modes_raw):
         if isinstance(entry, str):
             mode_name = entry.strip()
@@ -99,6 +103,11 @@ def load_sample(name, configs_dir, project_root):
             alias = str(entry.get("alias", "")).strip()
             if alias:
                 mode_aliases[mode_name] = alias
+            append = entry.get("append", [])
+            if isinstance(append, (str, int)):
+                append = [append]
+            if append:
+                mode_appends[mode_name] = [str(a) for a in append]
         else:
             raise ConfigError(
                 f"sample '{name}': modes[{i}] must be a string or object in {cfg_path}")
@@ -115,7 +124,10 @@ def load_sample(name, configs_dir, project_root):
         str(data.get("cmd", "")).strip() or
         None
     )
+    if cmd and (os.sep in cmd or (os.altsep and os.altsep in cmd)) \
+            and not os.path.isabs(cmd):
+        cmd = os.path.normpath(os.path.join(project_root, cmd))
     tag = str(data.get("tag", "")).strip() or os.path.basename(resolved)
 
     return Sample(name=name, path=resolved, modes=modes, cmd=cmd, tag=tag,
-                  mode_aliases=mode_aliases)
+                  mode_aliases=mode_aliases, mode_appends=mode_appends)

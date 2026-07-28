@@ -35,15 +35,26 @@ def categories(static_dir):
 
 def _load_files(static_dir, category):
     files = []
-    for path in sorted(glob.glob(os.path.join(static_dir, category, "*.json"))):
+    cat_dir = os.path.join(static_dir, category)
+    for path in sorted(glob.glob(os.path.join(glob.escape(cat_dir), "*.json"))):
         with open(path, encoding="utf-8") as f:
             files.append((path, json.load(f)))
     return files
 
 
+class _ExecError:
+    """Returned by _run when the sample binary could not be executed at all
+    (e.g. wrong-platform binary, missing interpreter)."""
+    def __init__(self, msg):
+        self.msg = msg
+
+
 def _run(sample, mode, params):
-    proc = subprocess.run(sample.argv(mode, params),
-                          stdout=subprocess.PIPE, stderr=None, text=True)
+    try:
+        proc = subprocess.run(sample.argv(mode, params),
+                              stdout=subprocess.PIPE, stderr=None, text=True)
+    except OSError as exc:
+        return _ExecError(str(exc))
     return proc.stdout.rstrip("\r\n")
 
 
@@ -72,9 +83,10 @@ def list_static(static_dir):
     return 0
 
 
-def run_static(sample, selected, static_dir, verbose=False):
+def run_static(sample, selected, static_dir, verbose=False, mode_filter=None):
     """Run the static tests for `selected` categories against one sample.
 
+    `mode_filter`, if given, restricts the run to files whose mode is in the set.
     Returns (success, failure, skipped).
     """
     success = failure = skipped = 0
@@ -87,10 +99,15 @@ def run_static(sample, selected, static_dir, verbose=False):
                   f"({os.path.relpath(cat_dir)})", file=sys.stderr)
             continue
 
+        files = [(p, d) for p, d in _load_files(static_dir, category)
+                 if not mode_filter or d["mode"] in mode_filter]
+        if not files:
+            continue
+
         print(f"=== {category} ===")
         cat_success = cat_failure = 0
 
-        for json_path, data in _load_files(static_dir, category):
+        for json_path, data in files:
             mode = data["mode"]
             tests = data.get("tests", [])
             if mode not in sample.modes:
@@ -105,6 +122,11 @@ def run_static(sample, selected, static_dir, verbose=False):
                 expect = test.get("expect", "equal")
                 expected = test["output"]
                 actual = _run(sample, mode, _resolve_params(test["params"], base_dir))
+                if isinstance(actual, _ExecError):
+                    cat_failure += 1
+                    print(f"  [FAIL] {tid}")
+                    print(f"    could not run sample '{sample.name}': {actual.msg}")
+                    continue
                 ok = (actual == expected) if expect == "equal" else (actual != expected)
 
                 if ok:

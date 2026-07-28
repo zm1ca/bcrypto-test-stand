@@ -46,15 +46,24 @@ def categories(boomerang_dir):
 
 def _load_files(boomerang_dir, category):
     files = []
-    for path in sorted(glob.glob(os.path.join(boomerang_dir, category, "*.json"))):
+    cat_dir = os.path.join(boomerang_dir, category)
+    for path in sorted(glob.glob(os.path.join(glob.escape(cat_dir), "*.json"))):
         with open(path, encoding="utf-8") as f:
             files.append((path, json.load(f)))
     return files
 
 
+class ExecError(Exception):
+    """The sample binary could not be executed at all (e.g. wrong-platform
+    binary, missing interpreter)."""
+
+
 def _run(sample, mode, params):
-    proc = subprocess.run(sample.argv(mode, params),
-                          stdout=subprocess.PIPE, stderr=None, text=True)
+    try:
+        proc = subprocess.run(sample.argv(mode, params),
+                              stdout=subprocess.PIPE, stderr=None, text=True)
+    except OSError as exc:
+        raise ExecError(str(exc))
     return proc.stdout.rstrip("\r\n")
 
 
@@ -92,10 +101,11 @@ def list_boomerang(boomerang_dir):
 
 
 def run_boomerang(sample, selected, boomerang_dir, rng, rounds_override=None,
-                  verbose=False):
+                  verbose=False, mode_filter=None):
     """Run the boomerang tests for `selected` categories against one sample.
 
-    Returns (passed, failed, skipped) counted in tests (not rounds).
+    `mode_filter`, if given, restricts the run to tests whose steps use a mode
+    in the set. Returns (passed, failed, skipped) counted in tests (not rounds).
     """
     passed = failed = skipped = 0
     stats = {}
@@ -107,10 +117,15 @@ def run_boomerang(sample, selected, boomerang_dir, rng, rounds_override=None,
                   f"({os.path.relpath(cat_dir)})", file=sys.stderr)
             continue
 
+        tests = [(p, t) for p, t in _load_files(boomerang_dir, category)
+                 if not mode_filter or (_modes_of(t) & mode_filter)]
+        if not tests:
+            continue
+
         print(f"=== {category} ===")
         cat_pass = cat_fail = 0
 
-        for _, test in _load_files(boomerang_dir, category):
+        for _, test in tests:
             tid = test["id"]
             missing = sorted(m for m in _modes_of(test) if m not in sample.modes)
             if missing:
@@ -149,7 +164,10 @@ def _run_test(sample, test, rounds, rng):
             values[slot["name"]] = rng_hex(rng, slot["bytes"])
         for step in steps:
             params = [_resolve(p, values) for p in step["params"]]
-            values[step["out"]] = _run(sample, step["mode"], params)
+            try:
+                values[step["out"]] = _run(sample, step["mode"], params)
+            except ExecError as exc:
+                return False, f"could not run sample '{sample.name}': {exc}"
         lhs = _resolve(lhs_tok, values)
         rhs = _resolve(rhs_tok, values)
         if lhs != rhs:
