@@ -1,5 +1,8 @@
 {
   "path": "bin/default/bee2recent.exe",
+  "cmd_mac": "bin/wine-quiet.sh",
+  "cmd_mac_arm": "bin/wine-quiet.sh",
+  "cmd_linux": "bin/wine-quiet.sh",
   "modes": [
     {"name": "bign-with-hbelt",   "alias": "sign"},
     {"name": "bels-share-split",  "alias": "split"},

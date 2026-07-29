@@ -8,7 +8,10 @@ __pycache__/
 
 # AI tooling
 .claude/
-CLAUDE.md
+
+# Markdown — ignore all except README
+*.md
+!README.md
 
 # Reports
 reports/*.txt
@@ -20,3 +23,4 @@ samples/*
 
 # macOS metadata
 .DS_Store
+private

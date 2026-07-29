@@ -1,5 +1,8 @@
 {
   "path": "bin/default/bee2old.exe",
+  "cmd_mac": "bin/wine-quiet.sh",
+  "cmd_mac_arm": "bin/wine-quiet.sh",
+  "cmd_linux": "bin/wine-quiet.sh",
   "modes": [
     {"name": "belt-cfb",       "alias": "cfb"},
     {"name": "belt-ctr",       "alias": "ctr"},

@@ -1,0 +1,37 @@
+{
+  "id": "BELT.MAC.4",
+  "doc": "STB 34.101.31-2020",
+  "rounds": 10000,
+  "inputs": [
+    {
+      "name": "msg",
+      "bytes": 2048
+    },
+    {
+      "name": "key",
+      "bytes": 32
+    }
+  ],
+  "steps": [
+    {
+      "mode": "belt-mac",
+      "params": [
+        "msg",
+        "key"
+      ],
+      "out": "t1"
+    },
+    {
+      "mode": "belt-mac",
+      "params": [
+        "msg",
+        "key"
+      ],
+      "out": "t2"
+    }
+  ],
+  "assert_equal": [
+    "t2",
+    "t1"
+  ]
+}
