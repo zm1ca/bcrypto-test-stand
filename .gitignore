@@ -1,6 +1,7 @@
 # Binaries — only bin/default/ is tracked; everything else is ignored
 bin/*
 !bin/default/
+!bin/wine-quiet.sh
 
 # Python cache
 __pycache__/
@@ -20,6 +21,8 @@ reports/*.txt
 samples/*
 !samples/bee2recent.json
 !samples/bee2old.json
+!samples/bee2bash-etalon.json
+!samples/bee2brng-etalon.json
 
 # macOS metadata
 .DS_Store
