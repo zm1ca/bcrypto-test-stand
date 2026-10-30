@@ -236,7 +236,7 @@ def generate(rng, options, index):
 
 ## Поддерживаемые режимы
 
-В `bin/default/` поставляются две эталонные сборки bee2: `bee2recent.exe` (актуальная) и `bee2old.exe`. Вместе они покрывают разные, непересекающиеся режимы, поэтому сравнивать их друг с другом нельзя — зарегистрируйте свой образец и сравните его с той сборкой, что покрывает нужные режимы.
+В `bin/default/` поставляются эталонные сборки bee2: `bee2recent.exe` (актуальная), `bee2old.exe`, `bee2bash.exe` (хэширование bash) и `bee2brng.exe` (BRNG). Их режимы в основном не пересекаются (общий только `brng-hmac-hbelt`: `bee2recent` и `bee2brng-etalon`), поэтому сравнивать их друг с другом в общем случае нельзя — зарегистрируйте свой образец и сравните его с той сборкой, что покрывает нужные режимы.
 
 | Режим | Документ | Реализация в `bin/default/` |
 |-------|----------|-----------------------------|
@@ -250,15 +250,22 @@ def generate(rng, options, index):
 | `bign-keytransport` | STB 34.101.45-2013 (7.2) | `bee2recent` |
 | `bels-share-split` | STB 34.101.60-2014 (7.3) | `bee2recent` |
 | `bels-share-merge` | STB 34.101.60-2014 (7.4) | `bee2recent` |
-| `brng-ctr-hbelt` | STB 34.101.47-2017 (6.2) | — |
-| `brng-hmac-hbelt` | STB 34.101.47-2017 (6.3) | `bee2recent` |
+| `brng-ctr-hbelt` | STB 34.101.47-2017 (6.2) | `bee2brng-etalon` (`bee2brng.exe`) |
+| `brng-hmac-hbelt` | STB 34.101.47-2017 (6.3) | `bee2recent`, `bee2brng-etalon` (`bee2brng.exe`) |
 | `hotp-hbelt` | STB 34.101.47-2013 (A.7) | `bee2recent` |
-
-Прочерк означает, что режим определён, но ни одна из эталонных сборок его пока не реализует.
+| `bash-hash128` | STB 34.101.77-2020 (7) | `bee2bash-etalon` (`bee2bash.exe`) |
+| `bash-hash192` | STB 34.101.77-2020 (7) | `bee2bash-etalon` (`bee2bash.exe`) |
+| `bash-hash256` | STB 34.101.77-2020 (7) | `bee2bash-etalon` (`bee2bash.exe`) |
 
 ## Эталонные реализации
 
-C исходными текстами `bee2recent.exe` можно ознакомиться [здесь](https://github.com/zm1ca/bee2stand). Исходные тексты для `bee2old.exe` утрачены.
+C исходными текстами `bee2recent.exe` можно ознакомиться [здесь](https://github.com/zm1ca/bee2stand). Исходные тексты для `bee2old.exe` утрачены. Исходные тексты `bee2bash.exe` и `bee2brng.exe` — `bin/default/bee2bash.c` и `bin/default/bee2brng.c`. Обе программы собраны со статической [bee2](https://github.com/agievich/bee2) (коммит d9e689a):
+
+```
+x86_64-w64-mingw32-gcc -O2 -I<bee2>/include -I<bee2-build>/include bee2bash.c <bee2-build>/src/libbee2_static.a -static -o bee2bash.exe
+```
+
+Вызов: `bee2bash.exe bash <hex> <128|192|256>`, `bee2brng.exe brng-ctr <x> <key> <s> [<n>]`, `bee2brng.exe brng-hmac <key> <s> <n>`. Диагностика пишется в stderr, поэтому ошибка любой из сторон даёт пустой stdout и провал теста.
 
 В качестве эталонных реализаций используется [bee2](https://github.com/agievich/bee2) доработанная исключительно в рамках адаптации к тестам методик и в части вывода необходимых cli-интерфейсов для поддерживаемых режимов.
 

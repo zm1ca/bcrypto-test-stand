@@ -1,0 +1,12 @@
+{
+  "path": "bin/default/bee2brng.exe",
+  "cmd_mac": "bin/wine-quiet.sh",
+  "cmd_mac_arm": "bin/wine-quiet.sh",
+  "cmd_linux": "bin/wine-quiet.sh",
+  "tag": "bee2brng-etalon",
+  "modes": [
+    {"name": "brng-ctr-hbelt",  "alias": "brng-ctr"},
+    {"name": "brng-hmac-hbelt", "alias": "brng-hmac", "append": "64"},
+    {"name": "brng-hmac",       "alias": "brng-hmac"}
+  ]
+}

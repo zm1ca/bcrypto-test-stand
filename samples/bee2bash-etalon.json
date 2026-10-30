@@ -1,0 +1,12 @@
+{
+  "path": "bin/default/bee2bash.exe",
+  "cmd_mac": "bin/wine-quiet.sh",
+  "cmd_mac_arm": "bin/wine-quiet.sh",
+  "cmd_linux": "bin/wine-quiet.sh",
+  "tag": "bee2bash-etalon",
+  "modes": [
+    {"name": "bash-hash128", "alias": "bash", "append": "128"},
+    {"name": "bash-hash192", "alias": "bash", "append": "192"},
+    {"name": "bash-hash256", "alias": "bash", "append": "256"}
+  ]
+}
